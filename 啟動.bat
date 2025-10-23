@@ -39,8 +39,11 @@ REM Start application
 echo [STARTING] YouTube Shorts Searcher...
 echo [啟動中] YouTube 短影片搜尋器...
 echo.
-echo After startup, open your browser and go to:
-echo 程式啟動後，請開啟瀏覽器並前往:
+echo The browser will open automatically in 3 seconds...
+echo 瀏覽器將在 3 秒後自動開啟...
+echo.
+echo If not, please open your browser and go to:
+echo 如果沒有自動開啟，請手動開啟瀏覽器並前往:
 echo.
 echo    http://127.0.0.1:5000
 echo.
@@ -48,6 +51,9 @@ echo Press Ctrl+C to stop the application
 echo 按 Ctrl+C 可停止程式
 echo ========================================
 echo.
+
+REM Wait 3 seconds then open browser
+start /B timeout /t 3 /nobreak >nul && start http://127.0.0.1:5000
 
 python app.py
 
