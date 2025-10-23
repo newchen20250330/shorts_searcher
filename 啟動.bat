@@ -25,8 +25,15 @@ if not exist .env (
     echo [ERROR] .env file not found
     echo [錯誤] 找不到 .env 檔案
     echo.
-    echo Please copy .env.example to .env and add your API Key
-    echo 請複製 .env.example 為 .env 並填入你的 API Key
+    echo Please run "設定API_Key.bat" to create .env file
+    echo 請執行「設定API_Key.bat」建立 .env 檔案
+    echo.
+    echo Or manually:
+    echo 或手動:
+    echo   1. Copy .env.example to .env
+    echo      複製 .env.example 為 .env
+    echo   2. Edit .env and add your API Key
+    echo      編輯 .env 並填入你的 API Key
     echo.
     pause
     exit /b 1
@@ -55,6 +62,30 @@ echo.
 REM Wait 3 seconds then open browser
 start /B timeout /t 3 /nobreak >nul && start http://127.0.0.1:5000
 
+REM Run Python app and keep window open on error
 python app.py
+if errorlevel 1 (
+    echo.
+    echo ========================================
+    echo [ERROR] Application failed to start
+    echo [錯誤] 程式啟動失敗
+    echo ========================================
+    echo.
+    echo Please check the error message above
+    echo 請查看上方的錯誤訊息
+    echo.
+    echo Common issues:
+    echo 常見問題:
+    echo   1. API Key not set or invalid
+    echo      API Key 未設定或無效
+    echo   2. Missing packages - try reinstalling
+    echo      缺少套件 - 嘗試重新安裝
+    echo   3. Port 5000 already in use
+    echo      Port 5000 已被佔用
+    echo.
+    echo For detailed diagnosis, run "診斷.bat"
+    echo 詳細診斷請執行「診斷.bat」
+    echo.
+)
 
 pause
