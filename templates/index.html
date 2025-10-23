@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube 熱門影片搜尋器</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .search-container {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+        .video-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+        }
+        .video-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+        .video-thumbnail {
+            border-radius: 8px;
+            width: 100%;
+            max-width: 320px;
+        }
+        .video-stats {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        .stat-item {
+            color: #666;
+            font-size: 0.9em;
+        }
+        .loading {
+            text-align: center;
+            padding: 50px;
+        }
+        .error-message {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .video-title {
+            color: #1a1a1a;
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: block;
+        }
+        .video-title:hover {
+            color: #ff0000;
+        }
+        .video-description {
+            color: #666;
+            font-size: 0.9em;
+            line-height: 1.4;
+            max-height: 60px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .channel-name {
+            color: #606060;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+        .search-form {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        .form-label {
+            color: white;
+            font-weight: 500;
+        }
+        .btn-search {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .btn-search:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(238, 90, 36, 0.4);
+        }
+        .category-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: 500;
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            border: none;
+            transition: all 0.3s;
+        }
+        .btn-success:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(40, 167, 69, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <div class="row">
+            <div class="col-12">
+                <h1 class="text-center mb-4">
+                    <i class="fab fa-youtube text-danger"></i>
+                    YouTube 短影音搜尋器
+                </h1>
+                
+                <!-- 搜尋表單 -->
+                <div class="search-form">
+                    <form id="searchForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="keyword" class="form-label">
+                                    <i class="fas fa-search"></i> 搜尋關鍵字 (留空使用預設)
+                                </label>
+                                <input type="text" class="form-control" id="keyword" placeholder="輸入關鍵字或留空使用 'shorts' 搜尋短影音...">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="categoryFilter" class="form-label">
+                                    <i class="fas fa-tag"></i> 影片類別
+                                </label>
+                                <select class="form-select" id="categoryFilter">
+                                    <option value="all">不限制</option>
+                                    <option value="1">電影與動畫</option>
+                                    <option value="2">汽車與交通工具</option>
+                                    <option value="10">音樂</option>
+                                    <option value="15">寵物與動物</option>
+                                    <option value="17">體育</option>
+                                    <option value="19">旅遊與活動</option>
+                                    <option value="20">遊戲</option>
+                                    <option value="22">人物與部落格</option>
+                                    <option value="23">喜劇</option>
+                                    <option value="24">娛樂</option>
+                                    <option value="25">新聞與政治</option>
+                                    <option value="26">操作說明與風格</option>
+                                    <option value="27">教育</option>
+                                    <option value="28">科學與技術</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="regionFilter" class="form-label">
+                                    <i class="fas fa-globe"></i> 地區
+                                </label>
+                                <select class="form-select" id="regionFilter">
+                                    <option value="TW" selected>台灣</option>
+                                    <option value="US">美國</option>
+                                    <option value="JP">日本</option>
+                                    <option value="KR">韓國</option>
+                                    <option value="CN">中國</option>
+                                    <option value="HK">香港</option>
+                                    <option value="SG">新加坡</option>
+                                    <option value="IN">印度</option>
+                                    <option value="GB">英國</option>
+                                    <option value="DE">德國</option>
+                                    <option value="FR">法國</option>
+                                    <option value="NO">挪威</option>
+                                    <option value="CH">瑞士</option>
+                                    <option value="DK">丹麥</option>
+                                    <option value="AE">阿拉伯聯合大公國</option>
+                                    <option value="SA">沙烏地阿拉伯</option>
+                                    <option value="MX">墨西哥</option>
+                                    <option value="CA">加拿大</option>
+                                    <option value="AU">澳洲</option>
+                                    <option value="RU">俄羅斯</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label for="timeFilter" class="form-label">
+                                    <i class="fas fa-clock"></i> 上傳時間
+                                </label>
+                                <select class="form-select" id="timeFilter">
+                                    <option value="all">不限制</option>
+                                    <option value="6">6小時內</option>
+                                    <option value="12">12小時內</option>
+                                    <option value="24" selected>24小時內</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="minViews" class="form-label">
+                                    <i class="fas fa-eye"></i> 最少觀看次數
+                                </label>
+                                <input type="number" class="form-control" id="minViews" placeholder="10000" value="10000" min="0">
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="maxDuration" class="form-label">
+                                    <i class="fas fa-stopwatch"></i> 影片長度
+                                </label>
+                                <select class="form-select" id="maxDuration">
+                                    <option value="all">不限制</option>
+                                    <option value="5">≤ 5秒</option>
+                                    <option value="10">≤ 10秒</option>
+                                    <option value="15">≤ 15秒</option>
+                                    <option value="30">≤ 30秒</option>
+                                    <option value="60" selected>≤ 1分鐘</option>
+                                    <option value="90">≤ 1.5分鐘</option>
+                                    <option value="120">≤ 2分鐘</option>
+                                    <option value="180">≤ 3分鐘</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="maxResults" class="form-label">
+                                    <i class="fas fa-list"></i> 結果數量
+                                </label>
+                                <select class="form-select" id="maxResults">
+                                    <option value="10">10個結果</option>
+                                    <option value="25" selected>25個結果</option>
+                                    <option value="50">50個結果</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <!-- 搜尋按鈕區域 -->
+                        <div class="row mt-3">
+                            <div class="col-12 text-center">
+                                <button type="submit" class="btn btn-search btn-lg">
+                                    <i class="fas fa-search"></i> 搜尋影片
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- 載入中 -->
+                <div id="loading" class="loading" style="display: none;">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">載入中...</span>
+                    </div>
+                    <p class="mt-2">正在搜尋影片...</p>
+                </div>
+
+                <!-- 錯誤訊息 -->
+                <div id="errorMessage" class="error-message" style="display: none;"></div>
+
+                <!-- 搜尋結果 -->
+                <div id="results"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('searchForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const keyword = document.getElementById('keyword').value;
+            const categoryFilter = document.getElementById('categoryFilter').value;
+            const regionFilter = document.getElementById('regionFilter').value;
+            const timeFilter = document.getElementById('timeFilter').value;
+            const minViews = document.getElementById('minViews').value || 10000;
+            const maxDuration = document.getElementById('maxDuration').value;
+            const maxResults = document.getElementById('maxResults').value;
+
+            // 顯示載入中
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('results').innerHTML = '';
+
+            try {
+                const response = await fetch('/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        keyword: keyword,
+                        categoryFilter: categoryFilter,
+                        regionFilter: regionFilter,
+                        timeFilter: timeFilter,
+                        minViews: parseInt(minViews),
+                        maxDuration: maxDuration,
+                        maxResults: parseInt(maxResults)
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    displayResults(data.videos, data.totalResults, data.relaxed, data.message, data.quota_info);
+                } else {
+                    showError(data.error || '搜尋失敗');
+                }
+            } catch (error) {
+                showError('網路錯誤: ' + error.message);
+            } finally {
+                document.getElementById('loading').style.display = 'none';
+            }
+        });
+
+        function displayResults(videos, totalResults, relaxed, message, quotaInfo) {
+            const resultsDiv = document.getElementById('results');
+            
+            if (videos.length === 0) {
+                resultsDiv.innerHTML = `
+                    <div class="text-center mt-4">
+                        <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                        <h4>找不到符合條件的影片</h4>
+                        <p class="text-muted">請試試其他關鍵字或調整搜尋條件</p>
+                        <div class="mt-3">
+                            <p class="text-info">💡 短影音搜尋建議：</p>
+                            <ul class="list-unstyled text-muted">
+                                <li>• 降低最少觀看次數（如改為1000或5000）</li>
+                                <li>• 延長上傳時間範圍（如改為不限制）</li>
+                                <li>• 選擇適合的短影音長度（15秒、60秒等）</li>
+                                <li>• 嘗試不同的關鍵字（如 'funny', 'music', 'dance'）</li>
+                                <li>• 選擇特定分類（如音樂、娛樂、遊戲等）</li>
+                                <li>• 留空關鍵字使用預設的 'shorts' 搜尋</li>
+                            </ul>
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h3><i class="fas fa-video"></i> 搜尋結果 (${totalResults} 個影片)</h3>
+                    <button class="btn btn-success" onclick="exportData()">
+                        <i class="fas fa-file-csv"></i> 匯出CSV
+                    </button>
+                </div>
+            `;
+
+            // 如果是放寬條件的結果，顯示提示
+            if (relaxed && message) {
+                html += `
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle"></i> ${message}
+                    </div>
+                `;
+            }
+            
+            // 顯示 API 配額資訊
+            if (quotaInfo) {
+                const quotaClass = quotaInfo.quota_percentage > 80 ? 'alert-warning' : 
+                                 quotaInfo.quota_percentage > 95 ? 'alert-danger' : 'alert-success';
+                html += `
+                    <div class="alert ${quotaClass}" role="alert">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <strong><i class="fas fa-chart-line"></i> API 配額狀態</strong><br>
+                                <small>
+                                    本次搜尋消耗: ${quotaInfo.current_cost} 單位 | 
+                                    今日已使用: ${quotaInfo.quota_percentage}% | 
+                                    預估剩餘搜尋次數: ${quotaInfo.estimated_searches_left} 次
+                                </small>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <div class="progress" style="height: 20px;">
+                                    <div class="progress-bar ${quotaInfo.quota_percentage > 80 ? 'bg-warning' : 'bg-success'}" 
+                                         style="width: ${quotaInfo.quota_percentage}%">
+                                        ${quotaInfo.quota_percentage}%
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            videos.forEach(video => {
+                const publishDate = new Date(video.publishedAt).toLocaleDateString('zh-TW');
+                const thumbnail = video.thumbnails.medium ? video.thumbnails.medium.url : video.thumbnails.default.url;
+                
+                html += `
+                    <div class="video-card">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <a href="${video.url}" target="_blank">
+                                    <img src="${thumbnail}" alt="${video.title}" class="video-thumbnail">
+                                </a>
+                            </div>
+                            <div class="col-md-8">
+                                <a href="${video.url}" target="_blank" class="video-title">
+                                    <h5>${escapeHtml(video.title)}</h5>
+                                </a>
+                                <div class="channel-name">
+                                    <i class="fas fa-user-circle"></i> ${escapeHtml(video.channelTitle)}
+                                </div>
+                                <div class="video-stats">
+                                    <span class="stat-item">
+                                        <i class="fas fa-eye"></i> ${video.formattedViewCount} 次觀看
+                                    </span>
+                                    <span class="stat-item">
+                                        <i class="fas fa-thumbs-up"></i> ${formatNumber(video.likeCount)} 個讚
+                                    </span>
+                                    <span class="stat-item">
+                                        <i class="fas fa-comment"></i> ${formatNumber(video.commentCount)} 則留言
+                                    </span>
+                                    <span class="stat-item">
+                                        <i class="fas fa-clock"></i> ${video.formattedDuration}
+                                    </span>
+                                    <span class="stat-item">
+                                        <i class="fas fa-calendar"></i> ${publishDate}
+                                    </span>
+                                    ${video.categoryName ? `
+                                        <span class="stat-item category-badge">
+                                            <i class="fas fa-tag"></i> ${escapeHtml(video.categoryName)}
+                                        </span>
+                                    ` : ''}
+                                </div>
+                                <div class="video-description mt-2">
+                                    ${escapeHtml(video.description.substring(0, 200))}${video.description.length > 200 ? '...' : ''}
+                                </div>
+                                
+                                <!-- 完整資訊摺疊 -->
+                                <div class="mt-2">
+                                    <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#details-${video.videoId}">
+                                        <i class="fas fa-info-circle"></i> 詳細資訊
+                                    </button>
+                                </div>
+                                <div class="collapse mt-2" id="details-${video.videoId}">
+                                    <div class="card card-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <strong>影片 ID:</strong> ${video.videoId}<br>
+                                                <strong>頻道 ID:</strong> ${video.channelId}<br>
+                                                <strong>影片分類:</strong> ${escapeHtml(video.categoryName || '未知')} ${video.categoryId ? `(ID: ${video.categoryId})` : ''}<br>
+                                                <strong>畫質:</strong> ${video.definition}<br>
+                                                <strong>字幕:</strong> ${video.caption === 'true' ? '有' : '無'}<br>
+                                                <strong>授權內容:</strong> ${video.licensedContent ? '是' : '否'}<br>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <strong>預設語言:</strong> ${video.defaultLanguage || '未設定'}<br>
+                                                <strong>音訊語言:</strong> ${video.defaultAudioLanguage || '未設定'}<br>
+                                                <strong>投影方式:</strong> ${video.projection || '標準'}<br>
+                                                <strong>確切觀看次數:</strong> ${formatNumber(video.viewCount)}<br>
+                                                <strong>確切按讚數:</strong> ${formatNumber(video.likeCount)}<br>
+                                                <strong>確切留言數:</strong> ${formatNumber(video.commentCount)}<br>
+                                            </div>
+                                        </div>
+                                        ${video.tags && video.tags.length > 0 ? `
+                                            <div class="mt-2">
+                                                <strong>標籤:</strong><br>
+                                                ${video.tags.map(tag => `<span class="badge bg-secondary me-1">${escapeHtml(tag)}</span>`).join('')}
+                                            </div>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            resultsDiv.innerHTML = html;
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatNumber(num) {
+            if (!num) return '0';
+            const number = parseInt(num);
+            return number.toLocaleString('zh-TW');
+        }
+        
+        function exportData() {
+            // 顯示載入中狀態
+            const button = event.target;
+            const originalText = button.innerHTML;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 處理中...';
+            button.disabled = true;
+            
+            // 下載CSV檔案
+            fetch('/export_csv')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('匯出失敗');
+                    }
+                    
+                    // 從回應標頭獲取檔案名稱
+                    const contentDisposition = response.headers.get('Content-Disposition');
+                    let filename = 'YouTube搜尋結果.csv';
+                    
+                    if (contentDisposition) {
+                        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+                        if (filenameMatch && filenameMatch[1]) {
+                            filename = filenameMatch[1].replace(/['"]/g, '');
+                        }
+                    }
+                    
+                    return response.blob().then(blob => ({ blob, filename }));
+                })
+                .then(({ blob, filename }) => {
+                    // 建立下載連結
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = filename;
+                    
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                })
+                .catch(error => {
+                    alert('匯出CSV失敗: ' + error.message);
+                })
+                .finally(() => {
+                    // 恢復按鈕狀態
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+# 環境變數檔案（包含 API Key）
+.env
+
+# Python 虛擬環境
+.venv/
+venv/
+env/
+
+# Python 快取
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# 測試相關
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE 設定
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 作業系統
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 日誌檔
+*.log
+
+# 其他
+*.bak
+*.tmp
