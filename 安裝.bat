@@ -72,14 +72,22 @@ echo.
 echo Next steps:
 echo 下一步:
 echo.
-echo 1. Copy .env.example to .env
-echo    複製 .env.example 為 .env
+echo OPTION 1 (Recommended): Run "設定API_Key.bat"
+echo 選項 1 (推薦): 執行「設定API_Key.bat」
+echo   - Automatically creates .env file
+echo   - 自動建立 .env 檔案
+echo   - Opens editor for you to add API Key
+echo   - 開啟編輯器讓你填入 API Key
 echo.
-echo 2. Edit .env and add your YouTube API Key
-echo    編輯 .env 檔案，填入你的 YouTube API Key
+echo OPTION 2 (Manual):
+echo 選項 2 (手動):
+echo   1. Copy .env.example to .env
+echo      複製 .env.example 為 .env
+echo   2. Edit .env and add your YouTube API Key
+echo      編輯 .env 檔案，填入你的 YouTube API Key
 echo.
-echo 3. Run "啟動.bat" to start the application
-echo    雙擊「啟動.bat」執行程式
+echo After setting up API Key, run "啟動.bat"
+echo 設定完 API Key 後，執行「啟動.bat」
 echo.
 echo For API Key instructions, see "使用說明.txt"
 echo API Key 取得方式請參考「使用說明.txt」
