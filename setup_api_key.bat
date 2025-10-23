@@ -4,7 +4,7 @@ title Setup API Key
 echo ========================================
 echo Setup API Key Helper
 echo ========================================
-echo.
+echo:
 
 REM Check .env.example
 if not exist .env.example (
@@ -13,43 +13,33 @@ if not exist .env.example (
     exit /b 1
 )
 
-REM Copy to .env
-if exist .env (
-    echo [INFO] .env file already exists
-    echo.
-    echo Overwrite? (Y/N)
-    set /p overwrite=
-    if /i not "%overwrite%"=="Y" (
-        echo [CANCELLED] Operation cancelled
-        pause
-        exit /b 0
-    )
-)
-
-echo.
+REM Copy to .env (always overwrite)
 echo [STEP 1] Creating .env file...
-copy .env.example .env >nul
+copy /Y .env.example .env >nul
+if errorlevel 1 (
+    echo [ERROR] Failed to create .env file
+    pause
+    exit /b 1
+)
 echo [OK] File created
-echo.
+echo:
 
 echo [STEP 2] Opening .env for editing...
-echo.
-echo Replace YOUR_API_KEY_HERE with your actual API Key
-echo.
+echo:
+echo IMPORTANT: Replace YOUR_API_KEY_HERE with your actual API Key
+echo:
 echo Press any key to open the file...
 pause >nul
 
 notepad .env
 
-echo.
+echo:
 echo ========================================
 echo Next steps:
 echo ========================================
-echo.
-echo 1. Make sure you saved the .env file
+echo:
+echo 1. Save the .env file in notepad
 echo 2. Make sure you replaced YOUR_API_KEY_HERE
-echo 3. Run "start.bat" to launch application
-echo.
-echo For API Key guide, see README.md
-echo.
+echo 3. Run start.bat to launch application
+echo:
 pause
