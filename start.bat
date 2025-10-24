@@ -1,10 +1,13 @@
 @echo off
+REM Force change to script directory
+cd /d "%~dp0"
+
 title YouTube Shorts Searcher
 
 echo ========================================
 echo YouTube Shorts Searcher
 echo ========================================
-echo.
+echo:
 
 REM Check virtual environment
 if not exist .venv (

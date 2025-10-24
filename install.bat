@@ -1,4 +1,7 @@
 @echo off
+REM Force change to script directory
+cd /d "%~dp0"
+
 title YouTube Shorts Searcher - Install
 
 echo ========================================

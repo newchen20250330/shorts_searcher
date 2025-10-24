@@ -1,10 +1,13 @@
 @echo off
+REM Force change to script directory
+cd /d "%~dp0"
+
 title Diagnostic Tool
 
 echo ========================================
 echo System Diagnostic Tool
 echo ========================================
-echo.
+echo:
 
 echo [CHECK 1] Python Version
 python --version
