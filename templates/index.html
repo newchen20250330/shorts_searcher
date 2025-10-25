@@ -165,7 +165,8 @@
                                     <i class="fas fa-globe"></i> 地區
                                 </label>
                                 <select class="form-select" id="regionFilter">
-                                    <option value="TW" selected>台灣</option>
+                                    <option value="all" selected>不指定</option>
+                                    <option value="TW">台灣</option>
                                     <option value="US">美國</option>
                                     <option value="JP">日本</option>
                                     <option value="KR">韓國</option>
@@ -195,16 +196,17 @@
                                 </label>
                                 <select class="form-select" id="timeFilter">
                                     <option value="all">不限制</option>
-                                    <option value="6">6小時內</option>
-                                    <option value="12">12小時內</option>
-                                    <option value="24" selected>24小時內</option>
+                                    <option value="1">1天內</option>
+                                    <option value="3">3天內</option>
+                                    <option value="5" selected>5天內</option>
+                                    <option value="7">7天內</option>
                                 </select>
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label for="minViews" class="form-label">
                                     <i class="fas fa-eye"></i> 最少觀看次數
                                 </label>
-                                <input type="number" class="form-control" id="minViews" placeholder="10000" value="10000" min="0">
+                                <input type="number" class="form-control" id="minViews" placeholder="500000" value="500000" min="0">
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label for="maxDuration" class="form-label">
@@ -264,6 +266,13 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
+        // 全域變數儲存當前影片資料
+        let currentVideos = [];
+        let currentTotalResults = 0;
+        let currentRelaxed = false;
+        let currentMessage = '';
+        let currentQuotaInfo = null;
+
         document.getElementById('searchForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
@@ -311,9 +320,21 @@
             }
         });
 
-        function displayResults(videos, totalResults, relaxed, message, quotaInfo) {
+        function displayResults(videos, totalResults, relaxed, message, quotaInfo, skipSort = false) {
+            // 初次顯示時先按觀看數排序（高到低）
+            if (!skipSort) {
+                videos.sort((a, b) => parseInt(b.viewCount) - parseInt(a.viewCount));
+            }
+
+            // 儲存資料到全域變數
+            currentVideos = videos;
+            currentTotalResults = totalResults;
+            currentRelaxed = relaxed;
+            currentMessage = message;
+            currentQuotaInfo = quotaInfo;
+
             const resultsDiv = document.getElementById('results');
-            
+
             if (videos.length === 0) {
                 resultsDiv.innerHTML = `
                     <div class="text-center mt-4">
@@ -337,11 +358,28 @@
             }
 
             let html = `
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h3><i class="fas fa-video"></i> 搜尋結果 (${totalResults} 個影片)</h3>
-                    <button class="btn btn-success" onclick="exportData()">
-                        <i class="fas fa-file-csv"></i> 匯出CSV
-                    </button>
+                <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap">
+                    <h3 class="mb-2"><i class="fas fa-video"></i> 搜尋結果 (${totalResults} 個影片)</h3>
+                    <div class="d-flex gap-2 align-items-center">
+                        <label for="sortOrder" class="mb-0 me-2" style="white-space: nowrap;">
+                            <i class="fas fa-sort"></i> 排序：
+                        </label>
+                        <select id="sortOrder" class="form-select form-select-sm" style="width: auto; min-width: 150px;" onchange="sortVideos(this.value)">
+                            <option value="views-desc" selected>觀看數 (高→低)</option>
+                            <option value="views-asc">觀看數 (低→高)</option>
+                            <option value="likes-desc">按讚數 (高→低)</option>
+                            <option value="likes-asc">按讚數 (低→高)</option>
+                            <option value="comments-desc">留言數 (高→低)</option>
+                            <option value="comments-asc">留言數 (低→高)</option>
+                            <option value="date-desc">上傳時間 (新→舊)</option>
+                            <option value="date-asc">上傳時間 (舊→新)</option>
+                            <option value="duration-desc">影片長度 (長→短)</option>
+                            <option value="duration-asc">影片長度 (短→長)</option>
+                        </select>
+                        <button class="btn btn-success btn-sm" onclick="exportData()">
+                            <i class="fas fa-file-csv"></i> 匯出CSV
+                        </button>
+                    </div>
                 </div>
             `;
 
@@ -487,7 +525,73 @@
             const number = parseInt(num);
             return number.toLocaleString('zh-TW');
         }
-        
+
+        function sortVideos(sortBy) {
+            if (currentVideos.length === 0) return;
+
+            // 複製陣列避免修改原始資料
+            let sortedVideos = [...currentVideos];
+
+            switch(sortBy) {
+                case 'views-desc':
+                    sortedVideos.sort((a, b) => parseInt(b.viewCount) - parseInt(a.viewCount));
+                    break;
+                case 'views-asc':
+                    sortedVideos.sort((a, b) => parseInt(a.viewCount) - parseInt(b.viewCount));
+                    break;
+                case 'likes-desc':
+                    sortedVideos.sort((a, b) => parseInt(b.likeCount || 0) - parseInt(a.likeCount || 0));
+                    break;
+                case 'likes-asc':
+                    sortedVideos.sort((a, b) => parseInt(a.likeCount || 0) - parseInt(b.likeCount || 0));
+                    break;
+                case 'comments-desc':
+                    sortedVideos.sort((a, b) => parseInt(b.commentCount || 0) - parseInt(a.commentCount || 0));
+                    break;
+                case 'comments-asc':
+                    sortedVideos.sort((a, b) => parseInt(a.commentCount || 0) - parseInt(b.commentCount || 0));
+                    break;
+                case 'date-desc':
+                    sortedVideos.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+                    break;
+                case 'date-asc':
+                    sortedVideos.sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt));
+                    break;
+                case 'duration-desc':
+                    sortedVideos.sort((a, b) => {
+                        const getDuration = (str) => {
+                            const match = str.match(/(\d+):(\d+)/);
+                            if (match) return parseInt(match[1]) * 60 + parseInt(match[2]);
+                            return 0;
+                        };
+                        return getDuration(b.formattedDuration) - getDuration(a.formattedDuration);
+                    });
+                    break;
+                case 'duration-asc':
+                    sortedVideos.sort((a, b) => {
+                        const getDuration = (str) => {
+                            const match = str.match(/(\d+):(\d+)/);
+                            if (match) return parseInt(match[1]) * 60 + parseInt(match[2]);
+                            return 0;
+                        };
+                        return getDuration(a.formattedDuration) - getDuration(b.formattedDuration);
+                    });
+                    break;
+            }
+
+            // 更新全域變數
+            currentVideos = sortedVideos;
+
+            // 重新渲染結果，skipSort = true 避免重複排序
+            displayResults(sortedVideos, currentTotalResults, currentRelaxed, currentMessage, currentQuotaInfo, true);
+
+            // 恢復排序選項的值
+            const sortSelect = document.getElementById('sortOrder');
+            if (sortSelect) {
+                sortSelect.value = sortBy;
+            }
+        }
+
         function exportData() {
             // 顯示載入中狀態
             const button = event.target;

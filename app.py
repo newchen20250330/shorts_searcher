@@ -52,18 +52,55 @@ def get_youtube_service():
     print(f"🔑 使用 API Key: {api_key[:15]}...{api_key[-5:]}")
     return build(YOUTUBE_API_SERVICE_NAME, YOUTUBE_API_VERSION, developerKey=api_key)
 
-def get_time_filter(hours):
-    """根據小時數產生時間過濾器"""
-    if hours == 24:
-        published_after = datetime.utcnow() - timedelta(hours=24)
-    elif hours == 12:
-        published_after = datetime.utcnow() - timedelta(hours=12)
-    elif hours == 6:
-        published_after = datetime.utcnow() - timedelta(hours=6)
+def get_time_filter(days):
+    """根據天數產生時間過濾器"""
+    if days == 1:
+        published_after = datetime.utcnow() - timedelta(days=1)
+    elif days == 3:
+        published_after = datetime.utcnow() - timedelta(days=3)
+    elif days == 5:
+        published_after = datetime.utcnow() - timedelta(days=5)
+    elif days == 7:
+        published_after = datetime.utcnow() - timedelta(days=7)
     else:
         return None
-    
+
     return published_after.strftime('%Y-%m-%dT%H:%M:%SZ')
+
+def get_time_segments(days):
+    """
+    將時間範圍分成多個時間段，用於分段搜尋
+    返回格式: [(start_time, end_time), ...]
+    start_time 和 end_time 都是 ISO 8601 格式字串
+    """
+    if not days or days == 'all':
+        return []
+
+    days = int(days)
+    now = datetime.utcnow()
+    segments = []
+
+    # 將時間範圍分成 3 段
+    if days <= 2:
+        # 1-2天：不分段，直接搜尋
+        start = now - timedelta(days=days)
+        segments.append((start.strftime('%Y-%m-%dT%H:%M:%SZ'), None))
+    elif days <= 5:
+        # 3-5天：分成 3 段
+        segment_days = days / 3
+        for i in range(3):
+            start = now - timedelta(days=(i+1) * segment_days)
+            end = now - timedelta(days=i * segment_days) if i > 0 else None
+            segments.append((start.strftime('%Y-%m-%dT%H:%M:%SZ'), end.strftime('%Y-%m-%dT%H:%M:%SZ') if end else None))
+    else:
+        # 7天以上：分成 3 段
+        segment_days = days / 3
+        for i in range(3):
+            start = now - timedelta(days=(i+1) * segment_days)
+            end = now - timedelta(days=i * segment_days) if i > 0 else None
+            segments.append((start.strftime('%Y-%m-%dT%H:%M:%SZ'), end.strftime('%Y-%m-%dT%H:%M:%SZ') if end else None))
+
+    return segments
 
 def format_duration(duration):
     """將 ISO 8601 格式的時間轉換為可讀格式"""
@@ -372,9 +409,9 @@ def search_videos():
         data = request.get_json()
         keyword = data.get('keyword', '').strip()
         category_filter = data.get('categoryFilter', 'all')
-        region_filter = data.get('regionFilter', 'TW')
+        region_filter = data.get('regionFilter', 'all')  # 預設不指定地區
         time_filter = data.get('timeFilter', 'all')
-        min_views = data.get('minViews', 10000)  # 預設最少觀看次数1萬
+        min_views = data.get('minViews', 500000)  # 預設最少觀看次數50萬
         max_duration = data.get('maxDuration', 'all')
         max_results = data.get('maxResults', 25)
         
@@ -415,90 +452,124 @@ def search_videos():
         }
         
         print(f"🔎 使用關鍵字搜尋: {keyword}")
-        
+        print(f"🎯 使用排序方式: viewCount (觀看數最高)")
+
         # 為了獲得足夠的結果，我們先搜尋更多的影片
-        search_batch_size = min(50, max_results * 3)  # 搜尋3倍的數量以確保有足夠結果
-        
-        # 使用搜尋 API
-        search_params = {
+        search_batch_size = 50  # YouTube API 單次最大值
+
+        # 基礎搜尋參數
+        base_search_params = {
             'part': 'snippet',
             'q': keyword,
             'type': 'video',
-            'order': 'relevance',
+            'order': 'viewCount',  # 固定使用觀看數排序，確保找到最熱門影片
             'maxResults': search_batch_size,
-            'regionCode': region_filter
+            'videoDuration': 'short'  # 限制為短影片（< 4 分鐘），提升 Shorts 搜尋命中率
         }
-        
-        # 根據地區設定語言偏好
-        if region_filter in ['TW', 'CN', 'HK', 'SG']:
-            search_params['relevanceLanguage'] = 'zh'
-        elif region_filter == 'JP':
-            search_params['relevanceLanguage'] = 'ja'
-        elif region_filter == 'KR':
-            search_params['relevanceLanguage'] = 'ko'
-        elif region_filter in ['NO']:
-            search_params['relevanceLanguage'] = 'no'
-        elif region_filter in ['CH', 'DE']:
-            search_params['relevanceLanguage'] = 'de'
-        elif region_filter in ['DK']:
-            search_params['relevanceLanguage'] = 'da'
-        elif region_filter in ['AE', 'SA']:
-            search_params['relevanceLanguage'] = 'ar'
-        elif region_filter in ['US', 'GB', 'CA', 'AU', 'IN']:
-            search_params['relevanceLanguage'] = 'en'
-        elif region_filter in ['FR']:
-            search_params['relevanceLanguage'] = 'fr'
-        elif region_filter in ['RU']:
-            search_params['relevanceLanguage'] = 'ru'
-        
+
+        # 只有在指定地區時才加入 regionCode 參數
+        if region_filter and region_filter != 'all':
+            base_search_params['regionCode'] = region_filter
+            print(f"🌍 使用地區過濾: {region_filter}")
+        else:
+            print(f"🌍 不限制地區")
+
+        # 根據地區設定語言偏好（只在有指定地區時）
+        if region_filter and region_filter != 'all':
+            if region_filter in ['TW', 'CN', 'HK', 'SG']:
+                base_search_params['relevanceLanguage'] = 'zh'
+            elif region_filter == 'JP':
+                base_search_params['relevanceLanguage'] = 'ja'
+            elif region_filter == 'KR':
+                base_search_params['relevanceLanguage'] = 'ko'
+            elif region_filter in ['NO']:
+                base_search_params['relevanceLanguage'] = 'no'
+            elif region_filter in ['CH', 'DE']:
+                base_search_params['relevanceLanguage'] = 'de'
+            elif region_filter in ['DK']:
+                base_search_params['relevanceLanguage'] = 'da'
+            elif region_filter in ['AE', 'SA']:
+                base_search_params['relevanceLanguage'] = 'ar'
+            elif region_filter in ['US', 'GB', 'CA', 'AU', 'IN']:
+                base_search_params['relevanceLanguage'] = 'en'
+            elif region_filter in ['FR']:
+                base_search_params['relevanceLanguage'] = 'fr'
+            elif region_filter in ['RU']:
+                base_search_params['relevanceLanguage'] = 'ru'
+
         # 添加分類過濾器
         if category_filter != 'all':
-            search_params['videoCategoryId'] = category_filter
+            base_search_params['videoCategoryId'] = category_filter
             print(f"🏷️  使用分類過濾: {category_filter}")
-        
-        # 添加時間過濾器
-        if time_filter != 'all':
-            hours = int(time_filter)
-            published_after = get_time_filter(hours)
-            if published_after:
-                search_params['publishedAfter'] = published_after
-        
-        # 執行初次搜尋
-        search_response = youtube.search().list(**search_params).execute()
-        api_calls['search_count'] = 1
-        
-        # 更新配額使用（搜尋 API 調用）
-        update_quota_usage(search_calls=1)
-        
+
+        # 獲取時間分段
+        time_segments = get_time_segments(time_filter) if time_filter != 'all' else []
+
         # 收集所有影片ID並去除重複
         all_video_ids = []
         seen_ids = set()
-        
-        for item in search_response['items']:
-            video_id = item['id']['videoId']
-            if video_id not in seen_ids:
-                all_video_ids.append(video_id)
-                seen_ids.add(video_id)
-        
-        # 如果結果不夠，嘗試獲取下一頁
-        while len(all_video_ids) < min(max_results * 2, 50) and 'nextPageToken' in search_response:
-            print(f"📄 當前有 {len(all_video_ids)} 個影片，嘗試獲取更多...")
-            search_params['pageToken'] = search_response['nextPageToken']
+
+        if time_segments:
+            # 使用時間分段搜尋策略
+            print(f"⏰ 使用時間分段搜尋: {len(time_segments)} 個時間段")
+            for idx, (start_time, end_time) in enumerate(time_segments):
+                search_params = base_search_params.copy()
+                search_params['publishedAfter'] = start_time
+                if end_time:
+                    search_params['publishedBefore'] = end_time
+
+                time_range = f"{start_time[:10]} 到 {end_time[:10] if end_time else '現在'}"
+                print(f"📅 時間段 {idx+1}/{len(time_segments)}: {time_range}")
+
+                # 執行搜尋
+                search_response = youtube.search().list(**search_params).execute()
+                api_calls['search_count'] += 1
+                update_quota_usage(search_calls=1)
+
+                # 收集影片ID
+                segment_count = 0
+                for item in search_response['items']:
+                    video_id = item['id']['videoId']
+                    if video_id not in seen_ids:
+                        all_video_ids.append(video_id)
+                        seen_ids.add(video_id)
+                        segment_count += 1
+
+                print(f"   ✅ 該時間段找到 {segment_count} 個新影片")
+        else:
+            # 沒有時間過濾或時間過濾為 'all'，執行一般搜尋並翻頁
+            print(f"🔍 執行一般搜尋（無時間限制）")
+            search_params = base_search_params.copy()
+
+            # 執行初次搜尋
             search_response = youtube.search().list(**search_params).execute()
-            api_calls['search_count'] += 1
-            
-            # 更新配額使用
+            api_calls['search_count'] = 1
             update_quota_usage(search_calls=1)
-            
+
+            # 收集影片ID
             for item in search_response['items']:
                 video_id = item['id']['videoId']
-                if video_id not in seen_ids and len(all_video_ids) < 50:
+                if video_id not in seen_ids:
                     all_video_ids.append(video_id)
                     seen_ids.add(video_id)
-            
-            # 避免過多API呼叫
-            if api_calls['search_count'] >= 3:
-                break
+
+            # 如果結果不夠，嘗試獲取下一頁（最多 150 支）
+            while len(all_video_ids) < 150 and 'nextPageToken' in search_response:
+                print(f"📄 當前有 {len(all_video_ids)} 個影片，嘗試獲取更多...")
+                search_params['pageToken'] = search_response['nextPageToken']
+                search_response = youtube.search().list(**search_params).execute()
+                api_calls['search_count'] += 1
+                update_quota_usage(search_calls=1)
+
+                for item in search_response['items']:
+                    video_id = item['id']['videoId']
+                    if video_id not in seen_ids and len(all_video_ids) < 150:
+                        all_video_ids.append(video_id)
+                        seen_ids.add(video_id)
+
+                # 避免過多API呼叫（最多 3 次翻頁）
+                if api_calls['search_count'] >= 3:
+                    break
         
         print(f"🎥 總共獲取到 {len(all_video_ids)} 個唯一影片 ID")
         
@@ -536,35 +607,43 @@ def search_videos():
                 continue
         
         print(f"📊 成功獲取到 {len(all_video_items)} 個影片詳細資訊")
-        
+
         videos = []
+        processed_video_ids = set()  # 用於去重
+
         for item in all_video_items:
             video_data = item['snippet']
             statistics = item['statistics']
             content_details = item['contentDetails']
-            
+            video_id = item['id']
+
+            # 檢查是否已處理過此影片（去重）
+            if video_id in processed_video_ids:
+                print(f"⏭️  跳過重複影片 {video_id}")
+                continue
+
             # 檢查觀看次數過濾器
             view_count = int(statistics.get('viewCount', 0))
             if view_count < min_views:
-                print(f"⏭️  跳過影片 {item['id']}: 觀看次數 {view_count} < {min_views}")
+                print(f"⏭️  跳過影片 {video_id}: 觀看次數 {view_count} < {min_views}")
                 continue
-            
+
             # 檢查影片長度過濾器
             if max_duration != 'all':
                 duration_seconds = get_duration_seconds(content_details.get('duration', ''))
                 max_duration_seconds = int(max_duration)
                 if duration_seconds > max_duration_seconds:
-                    print(f"⏭️  跳過影片 {item['id']}: 長度 {duration_seconds}秒 > {max_duration_seconds}秒")
+                    print(f"⏭️  跳過影片 {video_id}: 長度 {duration_seconds}秒 > {max_duration_seconds}秒")
                     continue
-            
-            print(f"✅ 包含影片 {item['id']}: {video_data['title'][:50]}... (觀看: {view_count}, 長度: {get_duration_seconds(content_details.get('duration', ''))}秒)")
-            
+
+            print(f"✅ 包含影片 {video_id}: {video_data['title'][:50]}... (觀看: {view_count}, 長度: {get_duration_seconds(content_details.get('duration', ''))}秒)")
+
             # 獲取類別名稱
             category_id = video_data.get('categoryId', '')
             category_name = get_category_name(category_id, categories)
-            
+
             video_info = {
-                'videoId': item['id'],
+                'videoId': video_id,
                 'title': video_data['title'],
                 'description': video_data['description'],
                 'channelTitle': video_data['channelTitle'],
@@ -584,11 +663,12 @@ def search_videos():
                 'caption': content_details.get('caption', ''),
                 'licensedContent': content_details.get('licensedContent', False),
                 'projection': content_details.get('projection', ''),
-                'url': f"https://www.youtube.com/watch?v={item['id']}",
+                'url': f"https://www.youtube.com/watch?v={video_id}",
                 'formattedViewCount': format_view_count(statistics.get('viewCount', '0')),
                 'formattedDuration': format_duration(content_details.get('duration', ''))
             }
             videos.append(video_info)
+            processed_video_ids.add(video_id)  # 記錄已處理的影片
         
         # 根據觀看次數排序並限制結果數量
         videos.sort(key=lambda x: int(x['viewCount']), reverse=True)
@@ -602,21 +682,28 @@ def search_videos():
             
             # 嘗試放寬長度限制，但保持最低觀看次數要求
             relaxed_videos = []
+            relaxed_video_ids = set()  # 用於去重
+
             for item in all_video_items:
                 video_data = item['snippet']
                 statistics = item['statistics']
                 content_details = item['contentDetails']
-                
+                video_id = item['id']
+
+                # 檢查是否已處理過此影片（去重）
+                if video_id in relaxed_video_ids:
+                    continue
+
                 # 仍然檢查觀看次數，但放寬長度限制
                 view_count = int(statistics.get('viewCount', 0))
                 if view_count < min_views:
                     continue  # 跳過觀看次數不足的影片
-                
+
                 category_id = video_data.get('categoryId', '')
                 category_name = get_category_name(category_id, categories)
                 
                 video_info = {
-                    'videoId': item['id'],
+                    'videoId': video_id,
                     'title': video_data['title'],
                     'description': video_data['description'],
                     'channelTitle': video_data['channelTitle'],
@@ -636,11 +723,12 @@ def search_videos():
                     'caption': content_details.get('caption', ''),
                     'licensedContent': content_details.get('licensedContent', False),
                     'projection': content_details.get('projection', ''),
-                    'url': f"https://www.youtube.com/watch?v={item['id']}",
+                    'url': f"https://www.youtube.com/watch?v={video_id}",
                     'formattedViewCount': format_view_count(statistics.get('viewCount', '0')),
                     'formattedDuration': format_duration(content_details.get('duration', ''))
                 }
                 relaxed_videos.append(video_info)
+                relaxed_video_ids.add(video_id)  # 記錄已處理的影片
             
             relaxed_videos.sort(key=lambda x: int(x['viewCount']), reverse=True)
             
