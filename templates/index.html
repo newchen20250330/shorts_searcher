@@ -204,7 +204,18 @@
                                 <label for="minViews" class="form-label">
                                     <i class="fas fa-eye"></i> 最少觀看次數
                                 </label>
-                                <input type="number" class="form-control" id="minViews" placeholder="10000" value="10000" min="0">
+                                <select class="form-select" id="minViews">
+                                    <option value="0">不限制</option>
+                                    <option value="100">100次以上</option>
+                                    <option value="500">500次以上</option>
+                                    <option value="1000" selected>1,000次以上</option>
+                                    <option value="5000">5,000次以上</option>
+                                    <option value="10000">10,000次以上</option>
+                                    <option value="50000">50,000次以上</option>
+                                    <option value="100000">100,000次以上</option>
+                                    <option value="500000">500,000次以上</option>
+                                    <option value="1000000">1,000,000次以上</option>
+                                </select>
                             </div>
                             <div class="col-md-3 mb-3">
                                 <label for="maxDuration" class="form-label">

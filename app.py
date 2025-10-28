@@ -374,7 +374,7 @@ def search_videos():
         category_filter = data.get('categoryFilter', 'all')
         region_filter = data.get('regionFilter', 'TW')
         time_filter = data.get('timeFilter', 'all')
-        min_views = data.get('minViews', 10000)  # 預設最少觀看次数1萬
+        min_views = data.get('minViews', 1000)  # 預設最少觀看次数1千（從1萬降低）
         max_duration = data.get('maxDuration', 'all')
         max_results = data.get('maxResults', 25)
         
@@ -417,17 +417,27 @@ def search_videos():
         print(f"🔎 使用關鍵字搜尋: {keyword}")
         
         # 為了獲得足夠的結果，我們先搜尋更多的影片
-        search_batch_size = min(50, max_results * 3)  # 搜尋3倍的數量以確保有足夠結果
+        # 印度等大市場需要更多搜尋量才能篩選出符合條件的影片
+        search_batch_size = 50  # YouTube API 單次最大限制
         
-        # 使用搜尋 API
+        # 使用搜尋 API - 增加排序選項以獲得不同結果
+        import random
+        
+        # 隨機選擇排序方式以獲得更多樣化的結果
+        order_options = ['relevance', 'date', 'viewCount', 'rating']
+        selected_order = random.choice(order_options)
+        
         search_params = {
             'part': 'snippet',
             'q': keyword,
             'type': 'video',
-            'order': 'relevance',
+            'videoDuration': 'short',  # 直接篩選短影片（< 4分鐘）
+            'order': selected_order,  # 使用隨機排序
             'maxResults': search_batch_size,
             'regionCode': region_filter
         }
+        
+        print(f"🎲 使用排序方式: {selected_order}")
         
         # 根據地區設定語言偏好
         if region_filter in ['TW', 'CN', 'HK', 'SG']:
@@ -462,6 +472,20 @@ def search_videos():
             published_after = get_time_filter(hours)
             if published_after:
                 search_params['publishedAfter'] = published_after
+                print(f"📅 使用時間範圍: {published_after}")
+        else:
+            # 即使沒指定時間篩選，也隨機添加一些時間範圍以增加結果多樣性
+            time_variations = [
+                None,  # 不限制 (40% 機率)
+                None,
+                (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%dT%H:%M:%SZ'),   # 最近1天
+                (datetime.now() - timedelta(days=3)).strftime('%Y-%m-%dT%H:%M:%SZ'),   # 最近3天
+                (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%SZ'),   # 最近7天
+            ]
+            random_time = random.choice(time_variations)
+            if random_time:
+                search_params['publishedAfter'] = random_time
+                print(f"📅 隨機時間範圍: 從 {random_time} 之後")
         
         # 執行初次搜尋
         search_response = youtube.search().list(**search_params).execute()
@@ -480,9 +504,10 @@ def search_videos():
                 all_video_ids.append(video_id)
                 seen_ids.add(video_id)
         
-        # 如果結果不夠，嘗試獲取下一頁
-        while len(all_video_ids) < min(max_results * 2, 50) and 'nextPageToken' in search_response:
-            print(f"📄 當前有 {len(all_video_ids)} 個影片，嘗試獲取更多...")
+        # 如果結果不夠，嘗試獲取下一頁（大幅提高上限以應對印度等大市場）
+        target_video_count = min(max_results * 5, 200)  # 目標獲取更多影片以便篩選
+        while len(all_video_ids) < target_video_count and 'nextPageToken' in search_response:
+            print(f"📄 當前有 {len(all_video_ids)} 個影片，目標 {target_video_count} 個，繼續獲取...")
             search_params['pageToken'] = search_response['nextPageToken']
             search_response = youtube.search().list(**search_params).execute()
             api_calls['search_count'] += 1
@@ -492,12 +517,13 @@ def search_videos():
             
             for item in search_response['items']:
                 video_id = item['id']['videoId']
-                if video_id not in seen_ids and len(all_video_ids) < 50:
+                if video_id not in seen_ids:
                     all_video_ids.append(video_id)
                     seen_ids.add(video_id)
             
-            # 避免過多API呼叫
-            if api_calls['search_count'] >= 3:
+            # 提高 API 呼叫上限，確保大市場有足夠結果
+            if api_calls['search_count'] >= 10:  # 從 3 次提高到 10 次
+                print(f"⚠️ 已達到 API 呼叫上限 (10次)，停止搜尋")
                 break
         
         print(f"🎥 總共獲取到 {len(all_video_ids)} 個唯一影片 ID")
